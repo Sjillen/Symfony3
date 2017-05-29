@@ -10,10 +10,41 @@
 
   <h2>{{ advert.title }}</h2>
   <i>Par {{ advert.author }}, le {{ advert.date|date('d/m/Y') }}</i>
-
+  {# On vérifie qu'une image soit bien associée à l'annonce #}
+  {% if advert.image is not null %}
+    <img src="{{ advert.image.url }}" alt="{{ advert.image.alt }}">
+  {% endif %}
   <div class="well">
     {{ advert.content }}
   </div>
+
+  {% if listAdvertSkills|length > 0 %}
+    <div>
+      Cette annonce requiert les compétences suivantes :
+      <ul>
+        {% for advertSkill in listAdvertSkills %}
+          <li>{{ advertSkill.skill.name }} : niveau {{ advertSkill.level }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if not advert.categories.empty %}
+  <p>
+    Cette annonce est parue dans les catégories suivantes :
+    {% for category in advert.categories %}
+      {{ category.name }}{% if not loop.last %}, {% endif %}
+    {% endfor %}
+  </p>
+  {% endif %}
+
+  {% for application in listApplications %}
+
+  <i> De {{ application.author}}</i>
+  <div>
+    {{ application.content }}
+  </div>
+{% endfor %}
 
   <p>
     <a href="{{ path('oc_platform_home') }}" class="btn btn-default">

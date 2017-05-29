@@ -1,0 +1,32 @@
+{% extends 'OCCoreBundle::layout.html.twig' %}
+
+{% block title %}
+  Accueil - {{ parent() }}
+{% endblock %}
+
+{% block body %}
+    {% for flashMessage in app.session.flashbag.get('notice') %}
+    <div class="alert alert-warning">
+    {{ flashMessage }}
+    </div>
+    {% endfor %}
+  <h2>Liste des annonces</h2>
+
+  <ul>
+    {% for advert in listAdverts %}
+      <li>
+        <a href="{{ path('oc_platform_view', {'id': advert.id}) }}">
+          {{ advert.title }}
+        </a>
+        par {{ advert.author }},
+        le {{ advert.date|date('d/m/Y') }}
+      </li>
+    {% else %}
+      <li>Pas (encore !) d'annonces</li>
+    {% endfor %}
+  </ul>
+
+  <h2><a href="{{ path('oc_core_contact') }}">contact</a></li>
+
+
+{% endblock %}
