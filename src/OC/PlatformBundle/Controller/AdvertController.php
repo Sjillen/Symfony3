@@ -14,35 +14,36 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class AdvertController extends Controller
 {
-public function indexAction($page)
+  public function indexAction($page)
   {
-    // ...
+    if ($page < 1) {
+      throw $this->createNotFoundException("La page ".$page." n'existe pas.");
+    }
 
-    // Notre liste d'annonce en dur
-    $listAdverts = array(
-      array(
-        'title'   => 'Recherche développpeur Symfony',
-        'id'      => 1,
-        'author'  => 'Alexandre',
-        'content' => 'Nous recherchons un développeur Symfony débutant sur Lyon. Blabla…',
-        'date'    => new \Datetime()),
-      array(
-        'title'   => 'Mission de webmaster',
-        'id'      => 2,
-        'author'  => 'Hugo',
-        'content' => 'Nous recherchons un webmaster capable de maintenir notre site internet. Blabla…',
-        'date'    => new \Datetime()),
-      array(
-        'title'   => 'Offre de stage webdesigner',
-        'id'      => 3,
-        'author'  => 'Mathieu',
-        'content' => 'Nous proposons un poste pour webdesigner. Blabla…',
-        'date'    => new \Datetime())
-    );
+    // Ici je fixe le nombre d'annonces par page à 3
+    // Mais bien sûr il faudrait utiliser un paramètre, et y accéder via $this->container->getParameter('nb_per_page')
+    $nbPerPage = 3;
 
-    // Et modifiez le 2nd argument pour injecter notre liste
+    // On récupère notre objet Paginator
+    $listAdverts = $this->getDoctrine()
+      ->getManager()
+      ->getRepository('OCPlatformBundle:Advert')
+      ->getAdverts($page, $nbPerPage)
+    ;
+
+    // On calcule le nombre total de pages grâce au count($listAdverts) qui retourne le nombre total d'annonces
+    $nbPages = ceil(count($listAdverts) / $nbPerPage);
+
+    // Si la page n'existe pas, on retourne une 404
+    if ($page > $nbPages) {
+      throw $this->createNotFoundException("La page ".$page." n'existe pas.");
+    }
+
+    // On donne toutes les informations nécessaires à la vue
     return $this->render('OCPlatformBundle:Advert:index.html.twig', array(
-      'listAdverts' => $listAdverts
+      'listAdverts' => $listAdverts,
+      'nbPages'     => $nbPages,
+      'page'        => $page,
     ));
   }
 
@@ -80,60 +81,7 @@ public function viewAction($id)
         //On recupere l'EntityManager
     $em = $this->getDoctrine()->getManager();
 
-    // Creation de l'entite
-    $advert = new Advert();
-    $advert->setTitle('Recherche developpeur Symfony.');
-    $advert->setAuthor('Alexandre');
-    $advert->setContent("Nous recherchons un developpeur Symfony debutant sur Lyon. Blabla...");
-    //On ne peut pas definir ni la date ni la publication,
-    // car ces attributs sont definis automatiquement dans le constructeur
-
-    // Creation de l'entite Image
-    $image = new Image();
-    $image->setUrl('http://sdz-upload.s3.amazonaws.com/prod/upload/job-de-reve.jpg');
-    $image->setAlt('Job de reve');
-
-    //On lie l'image a l'annonce
-    $advert->setImage($image);
-
-    //Creation de la premier candidature
-    $application1 = new Application();
-    $application1->setAuthor('Marine');
-    $application1->setContent("J'ai toutes les qualités requises.");
-
-    //Creation d'une deuxieme candidature par exemple
-    $application2 = new Application();
-    $application2->setAuthor('Pierre');
-    $application2->setContent("Je suis très motivé.");
-
-    //On lie les candidature a l'annonce
-    $application1->setAdvert($advert);
-    $application2->setAdvert($advert);
-
-    $listSkills = $em->getRepository('OCPlatformBundle:Skill')->findAll();
-
-    foreach ($listSkills as $skill) {
-      $advertSkill = new AdvertSkill();
-      $advertSkill->setAdvert($advert);
-      $advertSkill->setSkill($skill);
-
-      $advertSkill->setLevel('Expert');
-
-      $em->persist($advertSkill);
-    }
-
-
-
-    // Etape 1: On "persiste" l'Entite
-    $em->persist($advert);
-
-    //Etape 1 ter : pour cette relation pas de cascade lorsqu'on persiste Advert, car la relation est
-    // definie dans l'entite Application et non Advert. On doit donc tout persister a la main ici
-    $em->persist($application1);
-    $em->persist($application2);
-
-    //Etape 2: on "flush" tout ce qui a ete persiste avant
-    $em->flush();
+    //On ne sait toujours pas gerer le formulaire
 
     //Reste de la methode qu'on avait deja ecrite
     if ($request->isMethod('POST')) {
@@ -158,15 +106,9 @@ public function viewAction($id)
     throw new NotFoundHttpException("L'annonce d'id".$id." n'existe pas.");
    }
 
-   //La methode findAll retourn toutes les categories de la bdd
-   $listCategories = $em->getRepository('OCPlatformBundle:Category')->findAll();
-
-   // On boucle sur les categories pour les lier a l'annonce
-   foreach ( $listCategories as $category) {
-    $advert->addCategory($category);
+   if ($request->isMethod('POST')) {
+    $request->getSessions()->getFlashBag()->add('notice', 'Annonce biem modifiee.');
    }
-
-   $em->flush();
 
     return $this->render('OCPlatformBundle:Advert:edit.html.twig', array(
       'advert' => $advert
@@ -194,18 +136,19 @@ public function viewAction($id)
     return $this->render('OCPlatformBundle:Advert:delete.html.twig');
 	}
 
-	public function menuAction()
+	public function menuAction($limit)
 	{
-		//On fixe en dur une liste ici, bien entendu par la suite 
-		//on la recuperera en BDD !
-		$listAdverts = array(
-			array('id' => 2, 'title' => 'Recherche Developpeur Symfony'),
-			array('id' => 5, 'title' => 'Mission de webmaster'),
-			array('id' => 9, 'title' => 'Offre de stage webdeisgner')
-			);
+		$em = $this->getDoctrine()->getManager();
+
+    $listAdverts = $em->getREpository('OCPlatformBundle:Advert')->findBy(
+      array(),                  //Pas de critere
+      array('date' => 'desc'),  //On trie par date decroissante
+      $limit,                   //On selectionne $limit annonces
+      0                         //A partir du premier fichier
+    );                        
 
 		return $this->render('OCPlatformBundle:Advert:menu.html.twig', array(
-			//Tout l'interet est ici: le controleur pass
+			//Tout l'interet est ici: le controleur passe
 			//les variables necessaires au template !
 			'listAdverts' => $listAdverts
 			));
