@@ -3,6 +3,7 @@
 namespace OC\PlatformBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 /**
  * Image
@@ -35,8 +36,96 @@ class Image
      */
     private $alt;
 
-    
+    private $file;
 
+    private $tempFilename;
+
+    public function setFile(UploadedFile $file) 
+    {
+        $this->file =$file;
+
+        if (null!== $this->url) {
+            $this->tempFileName = $this->url;
+
+            $this->url = null;
+            $this->alt = null;
+        }
+    }
+
+    /**
+     * @ORM\PrePersist()
+     * @ORM\PreUpdate()
+     */
+    public function preUpload()
+    {
+        if (null == $this->file) {
+            return;
+        }
+
+        $this->url = $this->file->guessExtension();
+        $this->alt = $this->file->getClienOriginalName();
+    }
+
+    /**
+     * @ORM\PostPersist()
+     *@ ORM\PostUpdate()
+     */
+    public function upload()
+    {
+        if (null === $this->file) {
+            return;
+        }
+
+        if (null !== $this->tempFilename) {
+            $oldFile = $this->getUploadRootDir().'/'.$this->id.'.'.$this->tempFilename;
+            if (file_exists($oldFile)) {
+                unlink($oldFile);
+            }
+        }
+
+        $this->file->move(
+            $this->getUploadRootDir(),
+            $this->id.'.'.$this->url
+        );
+    }
+
+    /**
+    * @ORM\PreRemove()
+    */
+    public function preRemoveUpload()
+    {
+    // On sauvegarde temporairement le nom du fichier, car il dépend de l'id
+    $this->tempFilename = $this->getUploadRootDir().'/'.$this->id.'.'.$this->url;
+    }
+
+    /**
+    * @ORM\PostRemove()
+    */
+    public function removeUpload()
+    {
+        // En PostRemove, on n'a pas accès à l'id, on utilise notre nom sauvegardé
+        if (file_exists($this->tempFilename)) {
+        // On supprime le fichier
+            unlink($this->tempFilename);
+        }
+    }
+
+    public function getUploadDir()
+    {
+    // On retourne le chemin relatif vers l'image pour un navigateur
+    return 'uploads/img';
+    }
+
+    protected function getUploadRootDir()
+    {
+    // On retourne le chemin relatif vers l'image pour notre code PHP
+    return __DIR__.'/../../../../web/'.$this->getUploadDir();
+    }
+
+    public function getWebPath()
+    {
+        return $this->getUploadDir().'/'.$this->getId().'.'.$this->getUrl();
+    }
 
     /**
      * Get id

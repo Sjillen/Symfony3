@@ -1,10 +1,7 @@
 <?php
 // src/OC/PlatformBundle/Entity/Application.php
-
 namespace OC\PlatformBundle\Entity;
-
 use Doctrine\ORM\Mapping as ORM;
-
 /**
  * @ORM\Table(name="oc_application")
  * @ORM\Entity(repositoryClass="OC\PlatformBundle\Repository\ApplicationRepository")
@@ -18,33 +15,27 @@ class Application
    * @ORM\GeneratedValue(strategy="AUTO")
    */
   private $id;
-
   /**
    * @ORM\Column(name="author", type="string", length=255)
    */
   private $author;
-
   /**
    * @ORM\Column(name="content", type="text")
    */
   private $content;
-
   /**
    * @ORM\Column(name="date", type="datetime")
    */
   private $date;
-
   /**
    * @ORM\ManyToOne(targetEntity="OC\PlatformBundle\Entity\Advert", inversedBy="applications")
    * @ORM\JoinColumn(nullable=false)
    */
   private $advert;
-
   public function __construct()
   {
     $this->date = new \Datetime();
   }
-
   /**
    * @ORM\PrePersist
    */
@@ -52,7 +43,6 @@ class Application
   {
     $this->getAdvert()->increaseApplication();
   }
-
   /**
    * @ORM\PreRemove
    */
@@ -60,7 +50,6 @@ class Application
   {
     $this->getAdvert()->decreaseApplication();
   }
-
   /**
    * @return int
    */
@@ -68,7 +57,6 @@ class Application
   {
     return $this->id;
   }
-
   /**
    * @param string $author
    */
@@ -76,7 +64,6 @@ class Application
   {
     $this->author = $author;
   }
-
   /**
    * @return string
    */
@@ -84,7 +71,6 @@ class Application
   {
     return $this->author;
   }
-
   /**
    * @param string $content
    */
@@ -92,7 +78,6 @@ class Application
   {
     $this->content = $content;
   }
-
   /**
    * @return string
    */
@@ -100,7 +85,6 @@ class Application
   {
     return $this->content;
   }
-
   /**
    * @param \Datetime $date
    */
@@ -108,7 +92,6 @@ class Application
   {
     $this->date = $date;
   }
-
   /**
    * @return \Datetime
    */
@@ -116,7 +99,6 @@ class Application
   {
     return $this->date;
   }
-
   /**
    * @param Advert $advert
    */
@@ -124,7 +106,6 @@ class Application
   {
     $this->advert = $advert;
   }
-
   /**
    * @return Advert
    */

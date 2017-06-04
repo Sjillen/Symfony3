@@ -8,7 +8,7 @@ use Doctrine\ORM\Tools\Pagination\Paginator;
 
 class AdvertRepository extends EntityRepository
 {
-  public function getAdverts($page, $nbPerPage)
+public function getAdverts($page, $nbPerPage)
   {
     $query = $this->createQueryBuilder('a')
       ->leftJoin('a.image', 'i')
@@ -18,7 +18,6 @@ class AdvertRepository extends EntityRepository
       ->orderBy('a.date', 'DESC')
       ->getQuery()
     ;
-    
     $query
       // On définit l'annonce à partir de laquelle commencer la liste
       ->setFirstResult(($page-1) * $nbPerPage)
