@@ -8,11 +8,15 @@ class OCAntispam
 	private $locale;
 	private $minLength;
 
-	public function __construct(\swift_mailer $mailer, $locale, $minLength)
+	public function __construct(\swift_mailer $mailer, $minLength)
 	{
 		$this->mailer 	 = $mailer;
-		$this->locale 	 = $locale;
 		$this->minLength = (int) $minLength;
+	}
+
+	public function setLocale($locale)
+	{
+		$this->locale = $locale;
 	}
 	/**
 	 * Verifie si le texte est un spam ou non
