@@ -2,10 +2,15 @@
 // src/OC/PlatformBundle/Controller/AdvertController.php
 namespace OC\PlatformBundle\Controller;
 use OC\PlatformBundle\Entity\Advert;
+use OC\PlatformBundle\Event\MessagePostEvent;
+use OC\PlatformBundle\Event\PlatformEvents;
 use OC\PlatformBundle\Form\AdvertEditType;
 use OC\PlatformBundle\Form\AdvertType;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 class AdvertController extends Controller
 {
@@ -36,16 +41,9 @@ class AdvertController extends Controller
       'page'        => $page,
     ));
   }
-  public function viewAction($id)
+  public function viewAction(Advert $advert)
   {
     $em = $this->getDoctrine()->getManager();
-    // Pour récupérer une seule annonce, on utilise la méthode find($id)
-    $advert = $em->getRepository('OCPlatformBundle:Advert')->find($id);
-    // $advert est donc une instance de OC\PlatformBundle\Entity\Advert
-    // ou null si l'id $id n'existe pas, d'où ce if :
-    if (null === $advert) {
-      throw new NotFoundHttpException("L'annonce d'id ".$id." n'existe pas.");
-    }
     // Récupération de la liste des candidatures de l'annonce
     $listApplications = $em
       ->getRepository('OCPlatformBundle:Application')
@@ -62,11 +60,22 @@ class AdvertController extends Controller
       'listAdvertSkills' => $listAdvertSkills,
     ));
   }
+  /**
+   * @Security("has_role('ROLE_AUTEUR')")
+   */
   public function addAction(Request $request)
   {
+    // Plus besoin du if avec le security.context, l'annotation s'occupe de tout !
+    // Dans cette méthode, vous êtes sûrs que l'utilisateur courant dispose du rôle ROLE_AUTEUR
     $advert = new Advert();
     $form   = $this->get('form.factory')->create(AdvertType::class, $advert);
     if ($request->isMethod('POST') && $form->handleRequest($request)->isValid()) {
+      // On crée l'évènement avec ses 2 arguments
+      $event = new MessagePostEvent($advert->getContent(), $advert->getUser());
+      // On déclenche l'évènement
+      $this->get('event_dispatcher')->dispatch(PlatformEvents::POST_MESSAGE, $event);
+      // On récupère ce qui a été modifié par le ou les listeners, ici le message
+      $advert->setContent($event->getMessage());
       $em = $this->getDoctrine()->getManager();
       $em->persist($advert);
       $em->flush();
@@ -77,16 +86,12 @@ class AdvertController extends Controller
       'form' => $form->createView(),
     ));
   }
-  public function editAction($id, Request $request)
+  public function editAction(Advert $advert, Request $request)
   {
-    $em = $this->getDoctrine()->getManager();
-    $advert = $em->getRepository('OCPlatformBundle:Advert')->find($id);
-    if (null === $advert) {
-      throw new NotFoundHttpException("L'annonce d'id ".$id." n'existe pas.");
-    }
     $form = $this->get('form.factory')->create(AdvertEditType::class, $advert);
     if ($request->isMethod('POST') && $form->handleRequest($request)->isValid()) {
       // Inutile de persister ici, Doctrine connait déjà notre annonce
+      $em = $this->getDoctrine()->getManager();
       $em->flush();
       $request->getSession()->getFlashBag()->add('notice', 'Annonce bien modifiée.');
       return $this->redirectToRoute('oc_platform_view', array('id' => $advert->getId()));
@@ -96,13 +101,9 @@ class AdvertController extends Controller
       'form'   => $form->createView(),
     ));
   }
-  public function deleteAction(Request $request, $id)
+  public function deleteAction(Request $request, Advert $advert)
   {
     $em = $this->getDoctrine()->getManager();
-    $advert = $em->getRepository('OCPlatformBundle:Advert')->find($id);
-    if (null === $advert) {
-      throw new NotFoundHttpException("L'annonce d'id ".$id." n'existe pas.");
-    }
     // On crée un formulaire vide, qui ne contiendra que le champ CSRF
     // Cela permet de protéger la suppression d'annonce contre cette faille
     $form = $this->get('form.factory')->create();
@@ -142,5 +143,18 @@ class AdvertController extends Controller
     $request->getSession()->getFlashBag()->add('info', 'Les annonces plus vieilles que '.$days.' jours ont été purgées.');
     // On redirige vers la page d'accueil
     return $this->redirectToRoute('oc_platform_home');
+  }
+  public function translationAction($name)
+  {
+    return $this->render('OCPlatformBundle:Advert:translation.html.twig', array(
+      'name' => $name
+    ));
+  }
+  /**
+   * @ParamConverter("json")
+   */
+  public function ParamConverterAction($json)
+  {
+    return new Response(print_r($json, true));
   }
 }
